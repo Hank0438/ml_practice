@@ -36,7 +36,7 @@ def check_error(w, dataset):
 
 #PLA演算法實作
 
-def pla(dataset,):
+def pla(dataset):
     #w = [0, 0, 0]
     w = np.zeros(len(dataset[0])-1)
     count = 0

@@ -3,15 +3,17 @@ import numpy as np
 import pandas as pd
 import os
 import random
+import math
 
-#網路上找的dataset 可以線性分割
-
+#dataset 
 SCRIPT_PATH = os.path.dirname(os.path.abspath( __file__ ))
-data = pd.read_csv(SCRIPT_PATH + "/data/pla_data.txt", header=None, encoding='utf-8', delim_whitespace=True)
-dataset = np.array(data)
-dataset = np.insert(dataset, 0, 1, axis=1)
-print(dataset.shape)
-print(dataset)
+train_data = pd.read_csv(SCRIPT_PATH + "/data/pocket_train_data.txt", header=None, encoding='utf-8', delim_whitespace=True)
+train_data = np.array(train_data)
+train_data = np.insert(train_data, 0, 1, axis=1)
+test_data = pd.read_csv(SCRIPT_PATH + "/data/pocket_test_data.txt", header=None, encoding='utf-8', delim_whitespace=True)
+test_data = np.array(test_data)
+test_data = np.insert(test_data, 0, 1, axis=1)
+#print(train_data.shape)
 
 #產生亂數序列
 def randomly(seq):
@@ -19,41 +21,51 @@ def randomly(seq):
     random.shuffle(shuffled)
     return iter(shuffled)
 
-#判斷有沒有分類錯誤，並列印錯誤率
-
+#判斷有沒有分類錯誤
 def check_error(w, dataset):
     result = None
     error = 0
-    for i in randomly(dataset):
+    for j in randomly(range(len(dataset))):
+        i = dataset[j]
         x = i[:len(i)-1]
         s = i[len(i)-1]
         #將w轉置且和x取內積後判斷是正or負or零
         if int(np.sign(w.T.dot(x))) != s: 
-            result =  x, s
             error += 1
-    #print("error=%s/%s" % (error, len(dataset)) )
+            result =  x, s, error
     return result
 
-#PLA演算法實作
-
-def pla(dataset,):
+#Pocket演算法實作
+def pocket(dataset):
     #w = [0, 0, 0]
     w = np.zeros(len(dataset[0])-1)
-    count = 0
+    iter_count = 50
+    opt_w = np.array(w)
+    opt_error = math.inf
     while check_error(w, dataset) is not None:
-        x, s = check_error(w, dataset)
+        x, s, error = check_error(w, dataset)
         w += 0.5 * s * x
-        count += 1
-    print("count:",count)
-    return count
+        if error < opt_error:
+            opt_error = error
+            opt_w = np.array(w)
+        #print(opt_error)
+        #print(opt_w)
+        #限定update次數
+        iter_count -= 1
+        if iter_count <= 0: break
+    return np.array(w)
 
 #執行
-
 c = 0
-for j in range(2000):
-    random.seed(j)
-    c += pla(dataset)
-c /= 2000
-print("avg count:",c)
-
-#結果：40.xxxx
+time = 2000
+for t in range(time):
+    #讓隨機的分布不同
+    random.seed(t)
+    opt_w = pocket(train_data)
+    x, s, error = check_error(opt_w, test_data)
+    error_rate = error/len(test_data)
+    print(t)
+    print("error_rate:", error_rate)
+    c += error_rate
+c /= time
+print("avg error rate:", c)
