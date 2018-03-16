@@ -1,13 +1,24 @@
-#(a) Generate x by a uniform distribution in [−1,1].
-#(b) Generate y by f(x)=s(x) + noise 
-#where s(x)=sign(x) and the noise flips the result with 20% probability.
-
-#在[-1,1]种取20个点
-#分隔为21个区间作为theta的取值区间，每种分类有42个hyphothesis
-#枚举所有可能情况找到使E_in最小的hyphothesis，记录最小E_in
+#a) for each dimension i=1,2,⋯,d, find the best decision stump h(s,i,θ)
+# using the one-dimensional decision stump algorithm that you have just implemented.
+#b) return the "best of best"' decision stump in terms of Ein. 
+# If there is a tie , please randomly choose among the lowest-Ein ones
+#Run the algorithm on the Dtrain. Report the Ein of the optimal decision stump returned by your program. 
 import numpy as np
 
-def E_in(x, y, opt, datasize=20):
+#dataset 
+#train有100筆，test有1000筆
+train_data = np.loadtxt("C:/Users/USER/Desktop/ml_practice/data/stump_train_data.txt")
+test_data = np.loadtxt("C:/Users/USER/Desktop/ml_practice/data/stump_test_data.txt")
+
+def calculateError(x, y, s, theta, datasize):
+    #给定输入集合和指定的hyphothesis计算对应的错误率  
+    error = 0;  
+    for i in range(datasize): 
+        if(s * np.sign(x[i] - theta) != y[i]): error+=1  
+    errorRate = error/datasize   
+    return errorRate
+
+def E_in(x, y, opt_s, opt_theta, datasize):
     min_errorRate = 1.0
     #s表示1為positive ray，-1為negative ray
     for s in [1,-1]:
@@ -21,46 +32,46 @@ def E_in(x, y, opt, datasize=20):
             #theta在兩者之間
             else: theta = (x[i-1] + x[i]) / 2.0  
             
-            #给定输入集合和指定的hyphothesis计算对应的错误率  
-            error = 0;  
-            for i in range(datasize): 
-                if(s * np.sign(x[i] - theta) != y[i]): error+=1  
-            errorRate = error/datasize 
-
+            errorRate = calculateError(x, y, s, theta, datasize)
             #如果此hyphothesis的錯誤更小則替代
             if(errorRate < min_errorRate):  
-                opt = s, theta
+                opt_s = s
+                opt_theta = theta
                 min_errorRate = errorRate  
+    return min_errorRate, opt_s, opt_theta
 
-    return min_errorRate, opt
+def E_out(s, theta):
+    opt_Eout = 1.0
+    #對每一維度(xi)
+    for i in range(len(test_data[0])-1):
+        idx = np.argsort(test_data.T[i])
+        x = test_data.T[i][idx]
+        y = test_data.T[len(test_data[0])-1][idx]
+        #s,theta是由training data產生，不必再計算s,theta
+        Eout = calculateError(x, y, s, theta, len(x))
+        if(Eout < opt_Eout):
+            opt_Eout = Eout
+    return opt_Eout
 
-def E_out(opt):
-    s, theta = opt
-    return 0.5 + 0.3*s*(np.absolute(theta)-1.0)
+def decision_stump():
+    opt_Ein = 1.0
+    opt_s = 0
+    opt_theta = 0
+    #對每一維度(xi)
+    for i in range(len(train_data[0])-1):
+        #將每一維度sorting後的index序列保存，並用這序列排序x,y
+        idx = np.argsort(train_data.T[i])
+        x = train_data.T[i][idx]
+        y = train_data.T[len(train_data[0])-1][idx]
+        #計算Ein, s(正或負), theta(切在數線上的哪點)
+        Ein, s, theta = E_in(x, y, 0, 0, len(x))
+        #比較E_in挑選最佳的s,theta
+        if(Ein < opt_Ein):
+            opt_Ein = Ein
+            opt_s = s
+            opt_theta = theta
+    return opt_Ein, opt_s, opt_theta
 
-def decision_stump(total_E_in, total_E_out, datasize=20):
-    #隨機生成訓練樣本，且排序
-    x = np.random.uniform(-1,1,datasize)
-    np.sort(x)
-    y = np.sign(x)
-    #隨機增加noise
-    for i in range(datasize):
-        if(np.random.random_sample() < 0.2):
-            y[i] = y[i]*-1
-    opt = 0,0
-    Ein, opt = E_in(x,y,opt)
-    Eout = E_out(opt)
-    #print("E_in:",Ein)
-    #print("E_out:",Eout)
-    return Ein, Eout
-
-
-total_E_in = 0.0
-total_E_out = 0.0
-for i in range(5000):
-    print(i)
-    Ein, Eout = decision_stump(total_E_in, total_E_out)
-    total_E_in += Ein
-    total_E_out += Eout
-print("avg_E_in:",total_E_in/5000)
-print("avg_E_out:",total_E_out/5000)
+opt_Ein, opt_s, opt_theta = decision_stump()
+Eout = E_out(opt_s, opt_theta)
+print(Eout)
